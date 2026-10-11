@@ -1,0 +1,9 @@
+package com.campus.lostfound;
+import org.springframework.web.bind.annotation.*; import org.springframework.http.*; import org.springframework.web.server.ResponseStatusException; import java.util.*;
+@RestController @RequestMapping("/api/reports") public class ReportController {
+ private final ReportRepository repo; public ReportController(ReportRepository r){repo=r;}
+ @GetMapping public List<Report> all(@RequestParam(required=false) String type,@RequestParam(required=false) String q){return repo.findAll().stream().filter(x->type==null||type.isBlank()||x.getType().equalsIgnoreCase(type)).filter(x->q==null||q.isBlank()||((x.getTitle()+" "+x.getCategory()+" "+x.getLocation()+" "+x.getDescription()).toLowerCase().contains(q.toLowerCase()))).sorted(Comparator.comparing(Report::getCreatedAt,Comparator.nullsLast(Comparator.reverseOrder()))).toList();}
+ @PostMapping @ResponseStatus(HttpStatus.CREATED) public Report create(@RequestBody Report r){if(blank(r.getType())||blank(r.getTitle())||blank(r.getCategory())||blank(r.getLocation())||blank(r.getReporterName()))throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Fill all required fields.");r.setType(r.getType().toUpperCase());if(!List.of("LOST","FOUND").contains(r.getType()))throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Type must be LOST or FOUND.");r.setStatus("OPEN");r.setId(null);return repo.save(r);}
+ @PatchMapping("/{id}/status") public Report status(@PathVariable Long id,@RequestBody Map<String,String> body){Report r=repo.findById(id).orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND));String s=body.getOrDefault("status","").toUpperCase();if(!List.of("OPEN","MATCHED","RETURNED").contains(s))throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Invalid status");r.setStatus(s);return repo.save(r);}
+ private boolean blank(String s){return s==null||s.isBlank();}
+}
